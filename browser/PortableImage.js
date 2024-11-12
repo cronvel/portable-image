@@ -1,6 +1,6 @@
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.PortableImage = f()}})(function(){var define,module,exports;return (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
 /*
-	PixPal
+	Portable Image
 
 	Copyright (c) 2024 Cédric Ronvel
 
@@ -259,7 +259,7 @@ Mapping.RGB_COMPATIBLE_TO_GRAY_ALPHA = new MatrixChannelMapping(
 },{}],2:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
-	PixPal
+	Portable Image
 
 	Copyright (c) 2024 Cédric Ronvel
 
@@ -552,7 +552,7 @@ PortableImage.prototype.getMappingToChannels = function( toChannels , defaultCha
 		}
 	}
 
-	return new DirectChannelMappingWithDefault( matrix ) ;
+	return new PortableImage.DirectChannelMappingWithDefault( matrix ) ;
 } ;
 
 PortableImage.getMapping = function( fromChannels , toChannels , defaultChannelValues = PortableImage.DEFAULT_CHANNEL_VALUES ) {
@@ -572,7 +572,7 @@ PortableImage.getMapping = function( fromChannels , toChannels , defaultChannelV
 		}
 	}
 
-	return new DirectChannelMappingWithDefault( matrix ) ;
+	return new PortableImage.DirectChannelMappingWithDefault( matrix ) ;
 } ;
 
 
@@ -639,7 +639,7 @@ PortableImage.prototype.updateImageData = function( imageData , params = {} ) {
 		y: params.y > 0 ? params.y : 0 ,
 		endX: imageData.width ,
 		endY: imageData.height ,
-		channels: 4 ,
+		channels: 4
 	} ;
 
 	if ( src.compositing ) {
@@ -841,6 +841,7 @@ PortableImage.prototype.updateFromImageData = function( imageData , mapping ) {
 	throw new Error( "Not coded!" ) ;
 
 	// /!\ TODO /!\
+	/*
 
 	if ( ! mapping ) {
 		if ( this.isRgbaCompatible ) { mapping = Mapping.RGBA_COMPATIBLE_TO_RGBA ; }
@@ -871,13 +872,14 @@ PortableImage.prototype.updateFromImageData = function( imageData , mapping ) {
 		this.pixelBuffer[ iDst + mapping[ 2 ] ] = imageData[ iSrc + 2 ] ;
 		this.pixelBuffer[ iDst + mapping[ 3 ] ] = imageData[ iSrc + 3 ] ;
 	}
+	*/
 } ;
 
 
 }).call(this)}).call(this,require("buffer").Buffer)
 },{"./Mapping.js":1,"./compositing.js":3,"buffer":5}],3:[function(require,module,exports){
 /*
-	PixPal
+	Portable Image
 
 	Copyright (c) 2024 Cédric Ronvel
 
@@ -985,12 +987,12 @@ compositing.overlay = {
 	channel: ( alphaSrc , alphaDst , channelSrc , channelDst ) => compositing.normal.channel(
 		alphaSrc ,
 		alphaDst ,
-			// Got trouble making it work with dst alpha channel, the original resources just check if dst < 0.5,
-			// I made it three-way to solve issues when dst has low or transparency alpha, so that is color info
-			// doesn't affect the blending color.
-			1 + ( channelDst - 1 ) * alphaDst < 0.5   ?   2 * channelSrc * ( 1 + ( channelDst - 1 ) * alphaDst )       :
-			channelDst * alphaDst > 0.5               ?   1 - 2 * ( 1 - channelSrc ) * ( 1 - channelDst * alphaDst )   :
-			channelSrc ,
+		// Got trouble making it work with dst alpha channel, the original resources just check if dst < 0.5,
+		// I made it three-way to solve issues when dst has low or transparency alpha, so that is color info
+		// doesn't affect the blending color.
+		1 + ( channelDst - 1 ) * alphaDst < 0.5   ?   2 * channelSrc * ( 1 + ( channelDst - 1 ) * alphaDst )       :
+		channelDst * alphaDst > 0.5               ?   1 - 2 * ( 1 - channelSrc ) * ( 1 - channelDst * alphaDst )   :
+		channelSrc ,
 		channelDst
 	)
 } ;
