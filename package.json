@@ -1,0 +1,42 @@
+{
+  "name": "portable-image",
+  "version": "0.0.1",
+  "description": "Image data structure that supports RGB/RGBA/indexed color and arbitrary channels as well as blitters and web's ImageData output.",
+  "main": "lib/PortableImage.js",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {},
+  "scripts": {
+    "test": "tea-time -R dot"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cronvel/portable-image.git"
+  },
+  "keywords": [
+    "image",
+    "data",
+    "rgb",
+    "rgba",
+    "indexed",
+    "blit",
+    "blitter",
+    "palette"
+  ],
+  "author": "Cédric Ronvel",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/cronvel/portable-image/issues"
+  },
+  "copyright": {
+    "title": "Portable Image",
+    "years": [
+      2024
+    ],
+    "owner": "Cédric Ronvel"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
