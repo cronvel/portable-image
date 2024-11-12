@@ -28,16 +28,11 @@
 
 
 
-const Png = PixPal.Png ;
-const PortableImage = PixPal.PortableImage ;
-
-
-
 async function testIndexed() {
 	var $canvas = document.getElementById( 'canvas' ) ;
 	var ctx = $canvas.getContext( '2d' ) ;
 
-	var portableImage = await Png.loadImage( 'tiny-indexed.png' , { crc32: true } ) ;
+	var portableImage = await PortableImagePng.loadImage( 'tiny-indexed.png' , { crc32: true } ) ;
 	console.log( portableImage ) ;
 
 	var imageDataParams = { scaleX: 20 , scaleY: 20 } ;
@@ -96,7 +91,7 @@ async function testTrueColor() {
 	//filename = 'tiny-grayscale.png' ;
 	//filename = 'tiny-grayscale-alpha.png' ;
 	//filename = 'spectrum-and-alpha.png' ;
-	var portableImage = await Png.loadImage( filename , { crc32: true } ) ;
+	var portableImage = await PortableImagePng.loadImage( filename , { crc32: true } ) ;
 	console.log( portableImage ) ;
 
 	//ctx.fillStyle = "green"; ctx.fillRect(0, 0, 100, 100);
@@ -136,11 +131,11 @@ async function testCompositing() {
 	//filename = 'tiny-grayscale-alpha.png' ;
 	//filename = 'spectrum-and-alpha.png' ;
 	filename = 'heart.png' ;
-	var portableImage = await Png.loadImage( filename , { crc32: true } ) ;
+	var portableImage = await PortableImagePng.loadImage( filename , { crc32: true } ) ;
 
 	//overlayFilename = 'heart.png' ;
 	overlayFilename = 'tiny-rgba-2.png' ;
-	var overlayPortableImage = await Png.loadImage( overlayFilename , { crc32: true } ) ;
+	var overlayPortableImage = await PortableImagePng.loadImage( overlayFilename , { crc32: true } ) ;
 
 	//ctx.fillStyle = "green"; ctx.fillRect(0, 0, 100, 100);
 
