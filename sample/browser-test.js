@@ -166,6 +166,7 @@ async function testCompositing() {
 }
 
 
+
 // Like jQuery's $(document).ready()
 const ready = callback => {
     document.addEventListener( 'DOMContentLoaded' , function internalCallback() {
