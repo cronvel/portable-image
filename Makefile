@@ -17,10 +17,10 @@ dev-install: log/npm-dev-install.log
 build: browser
 
 # Build the browser lib
-browser: browser/PortableImage.js browser/PortableImage.min.js
+browser: browser/portable-image.js browser/portable-image.min.js
 
 # Build only the non-minified browser lib
-dev-browser: browser/PortableImage.js
+dev-browser: browser/portable-image.js
 
 # This run the JsHint & Mocha BDD test, display it to STDOUT & save it to log/mocha.log and log/jshint.log
 test: log/jshint.log log/mocha.log
@@ -52,12 +52,12 @@ UGLIFY=uglifyjs
 # Files rules
 
 # Build the browser lib
-browser/PortableImage.js: lib/*.js
-	${BROWSERIFY} lib/PortableImage.js -s PortableImage -o browser/PortableImage.js
+browser/portable-image.js: lib/*.js
+	${BROWSERIFY} lib/portable-image.js -s PortableImage -o browser/portable-image.js
 
 # Build the browser minified lib
-browser/PortableImage.min.js: browser/PortableImage.js
-	${UGLIFY} browser/PortableImage.js -o browser/PortableImage.min.js -m
+browser/portable-image.min.js: browser/portable-image.js
+	${UGLIFY} browser/portable-image.js -o browser/portable-image.min.js -m
 
 # JsHint STDOUT test
 log/jshint.log: log/npm-dev-install.log lib/*.js test/*.js
