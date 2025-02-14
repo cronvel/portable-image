@@ -252,7 +252,71 @@ ChannelDef.prototype.getClosestPaletteIndex = ( channelValues ) => {
 } ;
 
 
-},{"./Mapping.js":3,"./compositing.js":4}],2:[function(require,module,exports){
+},{"./Mapping.js":5,"./compositing.js":7}],2:[function(require,module,exports){
+/*
+	Portable Image
+
+	Copyright (c) 2024 Cédric Ronvel
+
+	The MIT License (MIT)
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
+*/
+
+"use strict" ;
+
+
+
+function Frame( sprite , params = {} ) {
+	Object.defineProperty( this , 'sprite' , { value: sprite } ) ;
+	this.duration = params.duration ;	// in ms
+	this.cells = [] ;	// Cells are ordered so that indexes are the than Sprite.layers indexes
+}
+
+module.exports = Frame ;
+
+const Sprite = require( './Sprite.js' ) ;
+const Layer = require( './Layer.js' ) ;
+const Image = require( './Image.js' ) ;
+
+
+
+Frame.prototype.toImage = function( ImageClass = Image ) {
+	var params = this.ase.getPortableImageParams( ImageClass ) ;
+	var portableImage = new ImageClass( params ) ;
+
+	for ( let cel of this.cels ) {
+		if ( ! cel.layer.visible ) { continue ; }
+		let celImage = cel.toImage( ImageClass ) ;
+		celImage.copyTo( portableImage , {
+			compositing: ImageClass.compositing.binaryOver ,
+			x: cel.x ,
+			y: cel.y
+		} ) ;
+		console.log( "Copy from/to:" , portableImage , celImage , " --- cel: " , cel ) ;
+	}
+
+	return portableImage ;
+} ;
+
+
+},{"./Image.js":3,"./Layer.js":4,"./Sprite.js":6}],3:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 	Portable Image
@@ -337,9 +401,9 @@ Image.ChannelDef = ChannelDef ;
 Image.prototype.setPalette = function( palette ) { this.channelDef.setPalette( palette ) ; } ;
 Image.prototype.setPaletteEntry = function( index , entry ) { this.channelDef.setPaletteEntry( index , entry ) ; } ;
 Image.prototype.setPaletteColor = function( index , color ) { this.channelDef.setPaletteColor( index , color ) ; } ;
-Image.prototype.hasSamePalette = function( portableImage ) { this.channelDef.hasSamePalette( portableImage.channelDef ) ; } ;
+Image.prototype.hasSamePalette = function( image ) { this.channelDef.hasSamePalette( image.channelDef ) ; } ;
 
-// Create the mapping to another PortableImage
+// Create the mapping to another Image
 Image.prototype.getAutoMappingTo = function( toImage , defaultChannelValues = ChannelDef.DEFAULT_CHANNEL_VALUES ) {
 	return this.channelDef.getAutoMappingToChannels( toImage.channelDef.channels , defaultChannelValues ) ;
 } ;
@@ -349,13 +413,13 @@ Image.prototype.getAutoMappingTo = function( toImage , defaultChannelValues = Ch
 /*
 	Copy to another Image instance.
 */
-Image.prototype.copyTo = function( portableImage , params = {} ) {
+Image.prototype.copyTo = function( image , params = {} ) {
 	var mapping = params.mapping ,
 		scaleX = params.scaleX ?? params.scale ?? 1 ,
 		scaleY = params.scaleY ?? params.scale ?? 1 ;
 
 	if ( ! mapping ) {
-		mapping = this.getAutoMappingTo( portableImage ) ;
+		mapping = this.getAutoMappingTo( image ) ;
 	}
 
 	let src = {
@@ -375,22 +439,22 @@ Image.prototype.copyTo = function( portableImage , params = {} ) {
 	} ;
 
 	let dst = {
-		buffer: portableImage.pixelBuffer ,
-		width: portableImage.width ,
-		height: portableImage.height ,
-		bytesPerPixel: portableImage.channelDef.bytesPerPixel ,
+		buffer: image.pixelBuffer ,
+		width: image.width ,
+		height: image.height ,
+		bytesPerPixel: image.channelDef.bytesPerPixel ,
 		x: params.x > 0 ? params.x : 0 ,
 		y: params.y > 0 ? params.y : 0 ,
-		endX: portableImage.width ,
-		endY: portableImage.height ,
-		channels: portableImage.channels.length
+		endX: image.width ,
+		endY: image.height ,
+		channels: image.channelDef.channels.length
 	} ;
 	//console.log( "### Mapping: " , dst.mapping ) ;
 
 	if ( src.compositing ) {
 		if ( this.channelDef.indexed ) {
-			if ( portableImage.channelDef.indexed ) {
-				if ( ! this.hasSamePalette( portableImage ) ) {
+			if ( image.channelDef.indexed ) {
+				if ( ! this.hasSamePalette( image ) ) {
 					throw new Error( "Uncompatible palettes are not supported yet" ) ;
 				}
 
@@ -410,14 +474,14 @@ Image.prototype.copyTo = function( portableImage , params = {} ) {
 			}
 		}
 		else {
-			if ( portableImage.channelDef.indexed ) { throw new Error( "Copy to indexed portable image is not supported yet" ) ; }
+			if ( image.channelDef.indexed ) { throw new Error( "Copy to indexed portable image is not supported yet" ) ; }
 			Image.compositingBlit( src , dst ) ;
 		}
 	}
 	else {
 		if ( this.channelDef.indexed ) {
-			if ( portableImage.channelDef.indexed ) {
-				if ( ! this.hasSamePalette( portableImage ) ) {
+			if ( image.channelDef.indexed ) {
+				if ( ! this.hasSamePalette( image ) ) {
 					throw new Error( "Uncompatible palettes are not supported yet" ) ;
 				}
 
@@ -430,7 +494,7 @@ Image.prototype.copyTo = function( portableImage , params = {} ) {
 			}
 		}
 		else {
-			if ( portableImage.channelDef.indexed ) { throw new Error( "Copy to indexed portable image is not supported yet" ) ; }
+			if ( image.channelDef.indexed ) { throw new Error( "Copy to indexed portable image is not supported yet" ) ; }
 			Image.blit( src , dst ) ;
 		}
 	}
@@ -764,7 +828,49 @@ Image.prototype.updateFromImageData = function( imageData , mapping ) {
 
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"./ChannelDef.js":1,"buffer":7}],3:[function(require,module,exports){
+},{"./ChannelDef.js":1,"buffer":10}],4:[function(require,module,exports){
+/*
+	Portable Image
+
+	Copyright (c) 2024 Cédric Ronvel
+
+	The MIT License (MIT)
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
+*/
+
+"use strict" ;
+
+
+
+function Layer( name , params = {} ) {
+	this.name = name || '' ;
+	this.visible = params.visible ?? true ;
+	this.compositing = params.compositing ?? null ;	// Compositing mode
+	this.opacity = params.opacity ?? 1 ;
+	this.order = params.order ?? 0 ;	// The order of the layer, rendered from lower to greater
+}
+
+module.exports = Layer ;
+
+
+},{}],5:[function(require,module,exports){
 /*
 	Portable Image
 
@@ -1024,7 +1130,85 @@ Mapping.RGB_COMPATIBLE_TO_GRAY_ALPHA = new MatrixChannelMapping(
 ) ;
 
 
-},{}],4:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
+/*
+	Portable Image
+
+	Copyright (c) 2024 Cédric Ronvel
+
+	The MIT License (MIT)
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
+*/
+
+"use strict" ;
+
+
+
+/*
+	A “Sprite” is a multi-layered image, with multiple frames and animation referencing those frames.
+*/
+
+
+
+const Frame = require( './Frame.js' ) ;
+const Layer = require( './Layer.js' ) ;
+const Image = require( './Image.js' ) ;
+
+
+
+function Sprite( params = {} ) {
+	// Clipping size
+	this.width = params.width ;
+	this.height = params.height ;
+
+	this.images = [] ;	// Image instances
+	this.layers = [] ;	// Layer instances
+	this.frames = [] ;	// Frame instances
+	this.animations = [] ;	// Animations instances
+
+	this.orderedLayers = [] ;	// Store layer indexes
+	this.animationByName = new Map() ;	// Animation name to animation index
+
+	/*
+	if ( Array.isArray( params.palette ) ) {
+		this.setPalette( params.palette ) ;
+	}
+
+	this.channelIndex = {} ;
+	for ( let i = 0 ; i < this.channels.length ; i ++ ) {
+		this.channelIndex[ this.channels[ i ] ] = i ;
+	}
+	*/
+}
+
+module.exports = Sprite ;
+
+
+
+Sprite.prototype.toImage = function( ImageClass ) {
+	// Only the first frame
+	return this.frames[ 0 ].toImage( ImageClass ) ;
+} ;
+
+
+},{"./Frame.js":2,"./Image.js":3,"./Layer.js":4}],7:[function(require,module,exports){
 /*
 	Portable Image
 
@@ -1154,7 +1338,7 @@ compositing.overlay = {
 } ;
 
 
-},{}],5:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 /*
 	Portable Image
 
@@ -1188,13 +1372,13 @@ compositing.overlay = {
 const lib = {} ;
 module.exports = lib ;
 
-//lib.Image = require( './PortableImage.js' ) ;
 lib.Image = require( './Image.js' ) ;
+lib.Sprite = require( './Sprite.js' ) ;
 lib.Mapping = require( './Mapping.js' ) ;
 lib.compositing = require( './compositing.js' ) ;
 
 
-},{"./Image.js":2,"./Mapping.js":3,"./compositing.js":4}],6:[function(require,module,exports){
+},{"./Image.js":3,"./Mapping.js":5,"./Sprite.js":6,"./compositing.js":7}],9:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -1346,7 +1530,7 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],7:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 (function (Buffer){(function (){
 /*!
  * The buffer module from node.js, for the browser.
@@ -3127,7 +3311,7 @@ function numberIsNaN (obj) {
 }
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"base64-js":6,"buffer":7,"ieee754":8}],8:[function(require,module,exports){
+},{"base64-js":9,"buffer":10,"ieee754":11}],11:[function(require,module,exports){
 /*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
@@ -3214,5 +3398,5 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}]},{},[5])(5)
+},{}]},{},[8])(8)
 });

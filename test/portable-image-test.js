@@ -28,7 +28,7 @@
 
 
 
-const pixpal = require( '..' ) ;
+const portableImage = require( '..' ) ;
 
 
 

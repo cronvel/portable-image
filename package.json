@@ -1,8 +1,8 @@
 {
   "name": "portable-image",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "Image data structure that supports RGB/RGBA/indexed color and arbitrary channels as well as blitters and web's ImageData output.",
-  "main": "lib/PortableImage.js",
+  "main": "lib/portable-image.js",
   "directories": {
     "test": "test"
   },
