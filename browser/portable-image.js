@@ -397,11 +397,12 @@ module.exports = Image ;
 
 
 Image.ChannelDef = ChannelDef ;
+Image.compositing = require( './compositing.js' ) ;
 
 Image.prototype.setPalette = function( palette ) { this.channelDef.setPalette( palette ) ; } ;
 Image.prototype.setPaletteEntry = function( index , entry ) { this.channelDef.setPaletteEntry( index , entry ) ; } ;
 Image.prototype.setPaletteColor = function( index , color ) { this.channelDef.setPaletteColor( index , color ) ; } ;
-Image.prototype.hasSamePalette = function( image ) { this.channelDef.hasSamePalette( image.channelDef ) ; } ;
+Image.prototype.hasSamePalette = function( image ) { return this.channelDef.hasSamePalette( image.channelDef ) ; } ;
 
 // Create the mapping to another Image
 Image.prototype.getAutoMappingTo = function( toImage , defaultChannelValues = ChannelDef.DEFAULT_CHANNEL_VALUES ) {
@@ -828,7 +829,7 @@ Image.prototype.updateFromImageData = function( imageData , mapping ) {
 
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"./ChannelDef.js":1,"buffer":10}],4:[function(require,module,exports){
+},{"./ChannelDef.js":1,"./compositing.js":7,"buffer":10}],4:[function(require,module,exports){
 /*
 	Portable Image
 
