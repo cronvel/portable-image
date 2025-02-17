@@ -29,6 +29,136 @@
 
 
 
+function Animation() {
+	this.name = '' ;
+	this.loop = false ;
+	this.startFrame = 0 ;
+	this.endFrame = 0 ;
+	//this.frameIndexes = [] ;
+}
+
+module.exports = Animation ;
+
+
+},{}],2:[function(require,module,exports){
+/*
+	Portable Image
+
+	Copyright (c) 2024 Cédric Ronvel
+
+	The MIT License (MIT)
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
+*/
+
+"use strict" ;
+
+
+
+/*
+	Autoplay an animation.
+*/
+
+function Animator( sprite , params = {} ) {
+	this.sprite = sprite ;
+	this.startFrame = + params.startFrame || 0 ;
+	this.endFrame = params.endFrame ?? sprite.frames.length ;
+
+	this.scaleX = params.scaleX ?? params.scale ?? 1 ;
+	this.scaleY = params.scaleY ?? params.scale ?? 1 ;
+	this.blitParams = { scaleX: this.scaleX , scaleY: this.scaleY } ;
+
+	this.x = + params.x || 0 ;
+	this.y = + params.y || 0 ;
+
+	this.imageData = this.sprite.prepareImageData( this.blitParams ) ;
+	this.ctx = params.ctx ;
+
+	this.running = false ;
+	this.frameIndex = 0 ;
+}
+
+module.exports = Animator ;
+
+
+
+Animator.prototype.start = function() {
+	if ( this.running ) { return ; }
+	this.running = true ;
+
+	this.runLoop() ;
+} ;
+
+
+
+Animator.prototype.runLoop = function() {
+	if ( ! this.running ) { return ; }
+
+	//console.log( "******* about to render frame #" + this.frameIndex ) ;
+	var frame = this.sprite.frames[ this.frameIndex ] ;
+	frame.updateImageData( this.imageData , this.blitParams ) ;
+	this.ctx.putImageData( this.imageData , this.x , this.y ) ;
+
+	this.frameIndex ++ ;
+	if ( this.frameIndex >= this.endFrame ) { this.frameIndex = this.startFrame ; }
+
+	setTimeout( () => this.runLoop() , frame.duration ) ;
+} ;
+
+
+
+Animator.prototype.stop = function() {
+	this.running = false ;
+} ;
+
+
+},{}],3:[function(require,module,exports){
+/*
+	Portable Image
+
+	Copyright (c) 2024 Cédric Ronvel
+
+	The MIT License (MIT)
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
+*/
+
+"use strict" ;
+
+
+
 /*
 	A Sprite is a sort-of 2-dimensional array of images, with frames as the top-header and layers as the left-header.
 	A Cell is an element of this 2-dimensional array.
@@ -43,7 +173,7 @@ function Cell( params = {} ) {
 module.exports = Cell ;
 
 
-},{}],2:[function(require,module,exports){
+},{}],4:[function(require,module,exports){
 /*
 	Portable Image
 
@@ -297,7 +427,7 @@ ChannelDef.prototype.getClosestPaletteIndex = ( channelValues ) => {
 } ;
 
 
-},{"./Mapping.js":6,"./compositing.js":8}],3:[function(require,module,exports){
+},{"./Mapping.js":8,"./compositing.js":10}],5:[function(require,module,exports){
 /*
 	Portable Image
 
@@ -328,8 +458,8 @@ ChannelDef.prototype.getClosestPaletteIndex = ( channelValues ) => {
 
 
 
-function Frame( sprite , params = {} ) {
-	Object.defineProperty( this , 'sprite' , { value: sprite } ) ;
+function Frame( params = {} , sprite = null ) {
+	Object.defineProperty( this , 'sprite' , { configurable: true , value: sprite } ) ;
 	this.duration = params.duration ;	// in ms
 	this.cells = [] ;	// Cells are ordered so that indexes are the than Sprite.layers indexes
 }
@@ -339,6 +469,12 @@ module.exports = Frame ;
 const Sprite = require( './Sprite.js' ) ;
 const Layer = require( './Layer.js' ) ;
 const Image = require( './Image.js' ) ;
+
+
+
+Frame.prototype.setParent = function( sprite ) {
+	Object.defineProperty( this , 'sprite' , { value: sprite } ) ;
+} ;
 
 
 
@@ -371,7 +507,38 @@ Frame.prototype.toImage = function( ImageClass = Image ) {
 } ;
 
 
-},{"./Image.js":4,"./Layer.js":5,"./Sprite.js":7}],4:[function(require,module,exports){
+
+// Just for consistency...
+Frame.prototype.prepareImageData = function( params = {} ) { return this.sprite.prepareImageData( params ) ; } ;
+
+
+
+Frame.prototype.createImageData = function( params = {} ) {
+	var imageData = this.sprite.prepareImageData( params ) ;
+	this.updateImageData( imageData , params ) ;
+	return imageData ;
+} ;
+
+
+
+Frame.prototype.updateImageData = function( imageData , params ) {
+	params = params ? Object.assign( {} , params ) : {} ;
+
+	for ( let cell of this.cells ) {
+		let cellImage = this.sprite.images[ cell.imageIndex ] ;
+
+		// .innerX/Y are like .x/y except that it is multiplied by scaling,
+		// it's important to use that for Cells instead of .x/y, or the Cells' positions would be wrong
+		params.innerX = cell.x ;
+		params.innerY = cell.y ;
+
+		params.compositing = Image.compositing.binaryOver ;
+		cellImage.updateImageData( imageData , params ) ;
+	}
+} ;
+
+
+},{"./Image.js":6,"./Layer.js":7,"./Sprite.js":9}],6:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 	Portable Image
@@ -480,8 +647,10 @@ Image.prototype.copyTo = function( image , params = {} ) {
 		width: this.width ,
 		height: this.height ,
 		bytesPerPixel: this.channelDef.bytesPerPixel ,
-		x: params.x < 0 ? - params.x / scaleX : 0 ,
-		y: params.y < 0 ? - params.y / scaleY : 0 ,
+		//x: params.x < 0 ? - params.x / scaleX : 0 ,
+		x: Math.max( 0 , - ( ( + params.x || 0 ) / scaleX + ( + params.innerX || 0 ) ) ) ,
+		//y: params.y < 0 ? - params.y / scaleY : 0 ,
+		y: Math.max( 0 , - ( ( + params.y || 0 ) / scaleY + ( + params.innerY || 0 ) ) ) ,
 		endX: this.width ,
 		endY: this.height ,
 		channels: this.channelDef.channels.length ,
@@ -496,8 +665,10 @@ Image.prototype.copyTo = function( image , params = {} ) {
 		width: image.width ,
 		height: image.height ,
 		bytesPerPixel: image.channelDef.bytesPerPixel ,
-		x: params.x > 0 ? params.x : 0 ,
-		y: params.y > 0 ? params.y : 0 ,
+		//x: params.x > 0 ? params.x : 0 ,
+		x: Math.max( 0 , ( + params.x || 0 ) + ( + params.innerX || 0 ) * scaleX ) ,
+		//y: params.y > 0 ? params.y : 0 ,
+		y: Math.max( 0 , ( + params.y || 0 ) + ( + params.innerY || 0 ) * scaleY ) ,
 		endX: image.width ,
 		endY: image.height ,
 		channels: image.channelDef.channels.length
@@ -555,24 +726,35 @@ Image.prototype.copyTo = function( image , params = {} ) {
 
 
 
-Image.prototype.createImageData = function( params = {} ) {
+// Prepare, but do not copy any pixels
+Image.prototype.prepareImageData = function( params = {} ) {
 	var scaleX = params.scaleX ?? params.scale ?? 1 ,
 		scaleY = params.scaleY ?? params.scale ?? 1 ;
 
-	var imageData = new ImageData( this.width * scaleX , this.height * scaleY ) ;
+	return new ImageData( this.width * scaleX , this.height * scaleY ) ;
+} ;
+
+
+
+// Create an ImageData and copy pixels to it
+Image.prototype.createImageData = function( params = {} ) {
+	var imageData = this.prepareImageData( params ) ;
 	this.updateImageData( imageData , params ) ;
 	return imageData ;
 } ;
 
 
 
+// Copy pixels to an existing ImageData
 Image.prototype.updateImageData = function( imageData , params = {} ) {
 	var mapping = params.mapping ,
 		scaleX = params.scaleX ?? params.scale ?? 1 ,
 		scaleY = params.scaleY ?? params.scale ?? 1 ;
 
+	//console.log( "Image.prototype.updateImageData() params:" , params ) ;
+
 	if ( ! mapping ) {
-		if ( imageData.width === this.width && imageData.height === this.height ) {
+		if ( imageData.width === this.width && imageData.height === this.height && ! params.x && ! params.y && scaleX === 1 && scaleY === 1 ) {
 			if ( this.channelDef.indexed ) {
 				if ( this.channelDef.isRgbaCompatible ) { return this.isoIndexedRgbaCompatibleToRgbaBlit( imageData.data ) ; }
 				if ( this.channelDef.isRgbCompatible ) { return this.isoIndexedRgbCompatibleToRgbaBlit( imageData.data ) ; }
@@ -597,8 +779,10 @@ Image.prototype.updateImageData = function( imageData , params = {} ) {
 		width: this.width ,
 		height: this.height ,
 		bytesPerPixel: this.channelDef.bytesPerPixel ,
-		x: params.x < 0 ? - params.x / scaleX : 0 ,
-		y: params.y < 0 ? - params.y / scaleY : 0 ,
+		//x: params.x < 0 ? - params.x / scaleX : 0 ,
+		x: Math.max( 0 , - ( ( + params.x || 0 ) / scaleX + ( + params.innerX || 0 ) ) ) ,
+		//y: params.y < 0 ? - params.y / scaleY : 0 ,
+		y: Math.max( 0 , - ( ( + params.y || 0 ) / scaleY + ( + params.innerY || 0 ) ) ) ,
 		endX: this.width ,
 		endY: this.height ,
 		channels: this.channelDef.channels.length ,
@@ -613,8 +797,10 @@ Image.prototype.updateImageData = function( imageData , params = {} ) {
 		width: imageData.width ,
 		height: imageData.height ,
 		bytesPerPixel: 4 ,
-		x: params.x > 0 ? params.x : 0 ,
-		y: params.y > 0 ? params.y : 0 ,
+		//x: params.x > 0 ? params.x : 0 ,
+		x: Math.max( 0 , ( + params.x || 0 ) + ( + params.innerX || 0 ) * scaleX ) ,
+		//y: params.y > 0 ? params.y : 0 ,
+		y: Math.max( 0 , ( + params.y || 0 ) + ( + params.innerY || 0 ) * scaleY ) ,
 		endX: imageData.width ,
 		endY: imageData.height ,
 		channels: 4
@@ -680,7 +866,7 @@ Image.blit = function( src , dst ) {
 		* palette: an array of array of values
 */
 Image.blitFromIndexed = function( src , dst ) {
-	console.warn( ".blitFromIndexed() used" , src , dst ) ;
+	//console.warn( ".blitFromIndexed() used" , src , dst ) ;
 	var blitWidth = Math.min( dst.endX - dst.x , ( src.endX - src.x ) * src.scaleX ) ,
 		blitHeight = Math.min( dst.endY - dst.y , ( src.endY - src.y ) * src.scaleY ) ;
 
@@ -756,7 +942,7 @@ Image.compositingBlitFromIndexed = function( src , dst ) {
 		* alphaChannel: the index of the alpha channel (3 for RGBA, 1 for grayscale+alpha)
 */
 Image.fullIndexedBlitWithTransparency = function( src , dst ) {
-	console.warn( ".fullIndexedBlitWithTransparency() used" , src , dst ) ;
+	//console.warn( ".fullIndexedBlitWithTransparency() used" , src , dst ) ;
 	var blitWidth = Math.min( dst.endX - dst.x , ( src.endX - src.x ) * src.scaleX ) ,
 		blitHeight = Math.min( dst.endY - dst.y , ( src.endY - src.y ) * src.scaleY ) ;
 
@@ -881,7 +1067,7 @@ Image.prototype.updateFromImageData = function( imageData , mapping ) {
 
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"./ChannelDef.js":2,"./compositing.js":8,"buffer":11}],5:[function(require,module,exports){
+},{"./ChannelDef.js":4,"./compositing.js":10,"buffer":13}],7:[function(require,module,exports){
 /*
 	Portable Image
 
@@ -923,7 +1109,7 @@ function Layer( name , params = {} ) {
 module.exports = Layer ;
 
 
-},{}],6:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 /*
 	Portable Image
 
@@ -1183,7 +1369,7 @@ Mapping.RGB_COMPATIBLE_TO_GRAY_ALPHA = new MatrixChannelMapping(
 ) ;
 
 
-},{}],7:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 /*
 	Portable Image
 
@@ -1245,6 +1431,8 @@ const Image = Sprite.Image = Sprite.prototype.Image = require( './Image.js' ) ;
 const Frame = Sprite.Frame = Sprite.prototype.Frame = require( './Frame.js' ) ;
 const Layer = Sprite.Layer = Sprite.prototype.Layer = require( './Layer.js' ) ;
 const Cell = Sprite.Cell = Sprite.prototype.Cell = require( './Cell.js' ) ;
+const Animation = Sprite.Animation = Sprite.prototype.Animation = require( './Animation.js' ) ;
+const Animator = Sprite.Animator = Sprite.prototype.Animator = require( './Animator.js' ) ;
 
 
 
@@ -1255,10 +1443,10 @@ Sprite.prototype.addImage = function( image ) {
 
 
 
-// .addFrame( Frame | frameParams )
 Sprite.prototype.addFrame = function( frame ) {
-	if ( ! ( frame instanceof Frame ) ) { frame = new Frame( this , frame ) ; }
+	frame.setParent( this ) ;
 	this.frames.push( frame ) ;
+	return this.frames.length - 1 ;
 } ;
 
 
@@ -1269,7 +1457,23 @@ Sprite.prototype.toImage = function( ImageClass ) {
 } ;
 
 
-},{"./Cell.js":1,"./ChannelDef.js":2,"./Frame.js":3,"./Image.js":4,"./Layer.js":5}],8:[function(require,module,exports){
+
+// Prepare, but do not copy any pixels
+Sprite.prototype.prepareImageData = function( params = {} ) {
+	var scaleX = params.scaleX ?? params.scale ?? 1 ,
+		scaleY = params.scaleY ?? params.scale ?? 1 ;
+
+	return new ImageData( this.width * scaleX , this.height * scaleY ) ;
+} ;
+
+
+
+Sprite.prototype.createAnimator = function( params = {} ) {
+	return new Animator( this , params ) ;
+} ;
+
+
+},{"./Animation.js":1,"./Animator.js":2,"./Cell.js":3,"./ChannelDef.js":4,"./Frame.js":5,"./Image.js":6,"./Layer.js":7}],10:[function(require,module,exports){
 /*
 	Portable Image
 
@@ -1399,7 +1603,7 @@ compositing.overlay = {
 } ;
 
 
-},{}],9:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 /*
 	Portable Image
 
@@ -1439,7 +1643,7 @@ lib.Mapping = require( './Mapping.js' ) ;
 lib.compositing = require( './compositing.js' ) ;
 
 
-},{"./Image.js":4,"./Mapping.js":6,"./Sprite.js":7,"./compositing.js":8}],10:[function(require,module,exports){
+},{"./Image.js":6,"./Mapping.js":8,"./Sprite.js":9,"./compositing.js":10}],12:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -1591,7 +1795,7 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],11:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 (function (Buffer){(function (){
 /*!
  * The buffer module from node.js, for the browser.
@@ -3372,7 +3576,7 @@ function numberIsNaN (obj) {
 }
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"base64-js":10,"buffer":11,"ieee754":12}],12:[function(require,module,exports){
+},{"base64-js":12,"buffer":13,"ieee754":14}],14:[function(require,module,exports){
 /*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
@@ -3459,5 +3663,5 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}]},{},[9])(9)
+},{}]},{},[11])(11)
 });
