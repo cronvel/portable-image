@@ -30,6 +30,51 @@
 
 
 /*
+	A Sprite is a sort-of 2-dimensional array of images, with frames as the top-header and layers as the left-header.
+	A Cell is an element of this 2-dimensional array.
+*/
+
+function Cell( params = {} ) {
+	this.imageIndex = + params.imageIndex || 0 ;	// The index of the image stored in Sprite.images
+	this.x = + params.x || 0 ;
+	this.y = + params.y || 0 ;
+}
+
+module.exports = Cell ;
+
+
+},{}],2:[function(require,module,exports){
+/*
+	Portable Image
+
+	Copyright (c) 2024 Cédric Ronvel
+
+	The MIT License (MIT)
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
+*/
+
+"use strict" ;
+
+
+
+/*
 	Params:
 		channels: the channels, default to [ 'red' , 'green' , 'blue' , 'alpha' ] or PortableImage.RGBA
 		indexed: (boolean) it uses a palette, up to 256 entries, each pixel is a 1-Byte index
@@ -252,7 +297,7 @@ ChannelDef.prototype.getClosestPaletteIndex = ( channelValues ) => {
 } ;
 
 
-},{"./Mapping.js":5,"./compositing.js":7}],2:[function(require,module,exports){
+},{"./Mapping.js":6,"./compositing.js":8}],3:[function(require,module,exports){
 /*
 	Portable Image
 
@@ -297,26 +342,36 @@ const Image = require( './Image.js' ) ;
 
 
 
-Frame.prototype.toImage = function( ImageClass = Image ) {
-	var params = this.ase.getPortableImageParams( ImageClass ) ;
-	var portableImage = new ImageClass( params ) ;
-
-	for ( let cel of this.cels ) {
-		if ( ! cel.layer.visible ) { continue ; }
-		let celImage = cel.toImage( ImageClass ) ;
-		celImage.copyTo( portableImage , {
-			compositing: ImageClass.compositing.binaryOver ,
-			x: cel.x ,
-			y: cel.y
-		} ) ;
-		console.log( "Copy from/to:" , portableImage , celImage , " --- cel: " , cel ) ;
-	}
-
-	return portableImage ;
+Frame.prototype.addCell = function( cell ) {
+	this.cells.push( cell ) ;
+	return this.cells.length - 1 ;
 } ;
 
 
-},{"./Image.js":3,"./Layer.js":4,"./Sprite.js":6}],3:[function(require,module,exports){
+
+Frame.prototype.toImage = function( ImageClass = Image ) {
+	var image = new Image( {
+		width: this.sprite.width ,
+		height: this.sprite.height ,
+		channelDef: this.sprite.channelDef
+	} ) ;
+	
+	for ( let cell of this.cells ) {
+		let cellImage = this.sprite.images[ cell.imageIndex ] ;
+		
+		cellImage.copyTo( image , {
+			compositing: Image.compositing.binaryOver ,
+			x: cell.x ,
+			y: cell.y
+		} ) ;
+		console.log( "Copy from/to:" , image , cellImage , " --- cell: " , cell ) ;
+	}
+
+	return image ;
+} ;
+
+
+},{"./Image.js":4,"./Layer.js":5,"./Sprite.js":7}],4:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 	Portable Image
@@ -345,10 +400,6 @@ Frame.prototype.toImage = function( ImageClass = Image ) {
 */
 
 "use strict" ;
-
-
-
-const ChannelDef = require( './ChannelDef.js' ) ;
 
 
 
@@ -396,7 +447,8 @@ module.exports = Image ;
 
 
 
-Image.ChannelDef = ChannelDef ;
+const ChannelDef = Image.ChannelDef = Image.prototype.ChannelDef = require( './ChannelDef.js' ) ;
+
 Image.compositing = require( './compositing.js' ) ;
 
 Image.prototype.setPalette = function( palette ) { this.channelDef.setPalette( palette ) ; } ;
@@ -829,7 +881,7 @@ Image.prototype.updateFromImageData = function( imageData , mapping ) {
 
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"./ChannelDef.js":1,"./compositing.js":7,"buffer":10}],4:[function(require,module,exports){
+},{"./ChannelDef.js":2,"./compositing.js":8,"buffer":11}],5:[function(require,module,exports){
 /*
 	Portable Image
 
@@ -871,7 +923,7 @@ function Layer( name , params = {} ) {
 module.exports = Layer ;
 
 
-},{}],5:[function(require,module,exports){
+},{}],6:[function(require,module,exports){
 /*
 	Portable Image
 
@@ -1131,7 +1183,7 @@ Mapping.RGB_COMPATIBLE_TO_GRAY_ALPHA = new MatrixChannelMapping(
 ) ;
 
 
-},{}],6:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
 /*
 	Portable Image
 
@@ -1168,16 +1220,11 @@ Mapping.RGB_COMPATIBLE_TO_GRAY_ALPHA = new MatrixChannelMapping(
 
 
 
-const Frame = require( './Frame.js' ) ;
-const Layer = require( './Layer.js' ) ;
-const Image = require( './Image.js' ) ;
-
-
-
 function Sprite( params = {} ) {
 	// Clipping size
 	this.width = params.width ;
 	this.height = params.height ;
+	this.channelDef = params.channelDef ?? new ChannelDef( params ) ;
 
 	this.images = [] ;	// Image instances
 	this.layers = [] ;	// Layer instances
@@ -1186,20 +1233,33 @@ function Sprite( params = {} ) {
 
 	this.orderedLayers = [] ;	// Store layer indexes
 	this.animationByName = new Map() ;	// Animation name to animation index
-
-	/*
-	if ( Array.isArray( params.palette ) ) {
-		this.setPalette( params.palette ) ;
-	}
-
-	this.channelIndex = {} ;
-	for ( let i = 0 ; i < this.channels.length ; i ++ ) {
-		this.channelIndex[ this.channels[ i ] ] = i ;
-	}
-	*/
 }
 
 module.exports = Sprite ;
+
+
+
+const ChannelDef = Sprite.ChannelDef = Sprite.prototype.ChannelDef = require( './ChannelDef.js' ) ;
+
+const Image = Sprite.Image = Sprite.prototype.Image = require( './Image.js' ) ;
+const Frame = Sprite.Frame = Sprite.prototype.Frame = require( './Frame.js' ) ;
+const Layer = Sprite.Layer = Sprite.prototype.Layer = require( './Layer.js' ) ;
+const Cell = Sprite.Cell = Sprite.prototype.Cell = require( './Cell.js' ) ;
+
+
+
+Sprite.prototype.addImage = function( image ) {
+	this.images.push( image ) ;
+	return this.images.length - 1 ;
+} ;
+
+
+
+// .addFrame( Frame | frameParams )
+Sprite.prototype.addFrame = function( frame ) {
+	if ( ! ( frame instanceof Frame ) ) { frame = new Frame( this , frame ) ; }
+	this.frames.push( frame ) ;
+} ;
 
 
 
@@ -1209,7 +1269,7 @@ Sprite.prototype.toImage = function( ImageClass ) {
 } ;
 
 
-},{"./Frame.js":2,"./Image.js":3,"./Layer.js":4}],7:[function(require,module,exports){
+},{"./Cell.js":1,"./ChannelDef.js":2,"./Frame.js":3,"./Image.js":4,"./Layer.js":5}],8:[function(require,module,exports){
 /*
 	Portable Image
 
@@ -1339,7 +1399,7 @@ compositing.overlay = {
 } ;
 
 
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 /*
 	Portable Image
 
@@ -1379,7 +1439,7 @@ lib.Mapping = require( './Mapping.js' ) ;
 lib.compositing = require( './compositing.js' ) ;
 
 
-},{"./Image.js":3,"./Mapping.js":5,"./Sprite.js":6,"./compositing.js":7}],9:[function(require,module,exports){
+},{"./Image.js":4,"./Mapping.js":6,"./Sprite.js":7,"./compositing.js":8}],10:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -1531,7 +1591,7 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 (function (Buffer){(function (){
 /*!
  * The buffer module from node.js, for the browser.
@@ -3312,7 +3372,7 @@ function numberIsNaN (obj) {
 }
 
 }).call(this)}).call(this,require("buffer").Buffer)
-},{"base64-js":9,"buffer":10,"ieee754":11}],11:[function(require,module,exports){
+},{"base64-js":10,"buffer":11,"ieee754":12}],12:[function(require,module,exports){
 /*! ieee754. BSD-3-Clause License. Feross Aboukhadijeh <https://feross.org/opensource> */
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
@@ -3399,5 +3459,5 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}]},{},[8])(8)
+},{}]},{},[9])(9)
 });
