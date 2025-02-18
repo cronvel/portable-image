@@ -160,7 +160,7 @@ async function testCompositing() {
 		//compositing: PortableImage.compositing.screen ,
 		//compositing: PortableImage.compositing.overlay ,
 	} ;
-	overlayPortableImage.updateImageData( imageData , overlayImageDataParams ) ;
+	overlayPortableImage.updateImageData( imageData , overlayImageDataParams , true ) ;
 
 	ctx.putImageData( imageData , 0 , 0 ) ;
 }
