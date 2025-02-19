@@ -229,7 +229,7 @@ module.exports = Cell ;
 */
 function ChannelDef( params = {} ) {
 	this.channels = Array.isArray( params.channels ) ? params.channels : ChannelDef.RGBA ;
-	this.indexed = params.indexed || Array.isArray( params.palette ) ;
+	this.indexed = !! params.indexed || Array.isArray( params.palette ) ;
 	this.bytesPerPixel = this.indexed ? 1 : this.channels.length ;
 	this.palette = this.indexed ? [] : null ;
 
@@ -271,6 +271,16 @@ ChannelDef.RGB = [ 'red' , 'green' , 'blue' ] ;
 ChannelDef.RGBA = [ 'red' , 'green' , 'blue' , 'alpha' ] ;
 ChannelDef.GRAY = [ 'gray' ] ;
 ChannelDef.GRAY_ALPHA = [ 'gray' , 'alpha' ] ;
+
+
+
+ChannelDef.prototype.clone = function() {
+	return new ChannelDef( {
+		channels: [ ... this.channels ] ,
+		indexed: this.indexed ,
+		palette: this.palette
+	} ) ;
+} ;
 
 
 
@@ -486,6 +496,7 @@ module.exports = Frame ;
 
 const Sprite = require( './Sprite.js' ) ;
 const Layer = require( './Layer.js' ) ;
+const Cell = require( './Cell.js' ) ;
 const Image = require( './Image.js' ) ;
 
 
@@ -509,11 +520,11 @@ Frame.prototype.addCell = function( cell ) {
 
 
 
-Frame.prototype.toImage = function( ImageClass = Image ) {
+Frame.prototype.toImage = function( ImageClass = Image , internal = false ) {
 	var image = new Image( {
 		width: this.sprite.width ,
 		height: this.sprite.height ,
-		channelDef: this.sprite.channelDef
+		channelDef: internal ? this.sprite.channelDef : this.sprite.channelDef.clone()
 	} ) ;
 
 	for ( let cell of this.cells ) {
@@ -527,6 +538,17 @@ Frame.prototype.toImage = function( ImageClass = Image ) {
 		console.log( "Copy from/to:" , image , cellImage , " --- cell: " , cell ) ;
 	}
 
+	return image ;
+} ;
+
+
+
+// Internal
+Frame.prototype.flatten = function() {
+	var image = this.toImage( Image , true ) ;
+	var imageIndex = this.sprite.addImage( image ) ;
+	this.cells[ 0 ] = new Cell( { imageIndex } ) ;
+	this.cells.length = 1 ;
 	return image ;
 } ;
 
@@ -575,7 +597,7 @@ Frame.prototype.updateImageData = function( imageData , params , noClear = false
 } ;
 
 
-},{"./Image.js":6,"./Layer.js":7,"./Sprite.js":9}],6:[function(require,module,exports){
+},{"./Cell.js":3,"./Image.js":6,"./Layer.js":7,"./Sprite.js":9}],6:[function(require,module,exports){
 (function (Buffer){(function (){
 /*
 	Portable Image
@@ -1490,9 +1512,70 @@ Sprite.prototype.addFrame = function( frame ) {
 
 
 
+Sprite.prototype.addLayer = function( layer ) {
+	this.layers.push( layer ) ;
+
+	// For instance, we force a layer order
+	var index = this.layers.length - 1 ;
+	layer.order = index ;
+	this.orderedLayers.push( index ) ;
+	return index ;
+} ;
+
+
+
 Sprite.prototype.toImage = function( ImageClass ) {
 	// Only the first frame
 	return this.frames[ 0 ].toImage( ImageClass ) ;
+} ;
+
+
+
+Sprite.prototype.flatten = function() {
+	for ( let frame of this.frames ) { frame.flatten() ; }
+	this.cleanImageIndexes() ;
+} ;
+
+
+
+// Removed unused images and re-index
+Sprite.prototype.cleanImageIndexes = function() {
+
+	// First, mark which image is used or unused
+
+	var isUsed = new Array( this.images.length ).fill( false ) ;
+
+	for ( let frame of this.frames ) {
+		for ( let cell of frame.cells ) {
+			isUsed[ cell.imageIndex ] = true ;
+		}
+	}
+
+	// Now remove and re-index images, and map the index changes
+
+	var newIndex = 0 ,
+		indexMap = new Array( this.images.length ) ;
+	
+	for ( let currentIndex = 0 ; currentIndex < isUsed.length ; currentIndex ++ ) {
+		if ( isUsed[ currentIndex ] ) {
+			if ( currentIndex !== newIndex ) {
+				this.images[ newIndex ] = this.images[ currentIndex ] ;
+			}
+
+			indexMap[ currentIndex ] = newIndex ;
+			newIndex ++ ;
+		}
+	}
+
+	this.images.length = newIndex ;
+
+	// Finally, update the new indexes everywhere
+	
+	for ( let frame of this.frames ) {
+		for ( let cell of frame.cells ) {
+			cell.imageIndex = indexMap[ cell.imageIndex ] ;
+		}
+	}
 } ;
 
 
